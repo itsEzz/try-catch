@@ -1,0 +1,38 @@
+{
+	"name": "@itsezz/try-catch",
+	"version": "1.0.0",
+	"description": "A TypeScript utility for elegant error handling with Result types",
+	"main": "dist/index.js",
+	"types": "dist/index.d.ts",
+	"files": [
+		"dist"
+	],
+	"scripts": {
+		"build": "tsc",
+		"test": "jest",
+		"test:watch": "jest --watch",
+		"test:coverage": "jest --coverage",
+		"lint": "eslint src --ext .ts",
+		"lint:fix": "eslint src --ext .ts --fix",
+		"prepublishOnly": "pnpm run lint && pnpm run test && pnpm run build",
+		"prepare": "pnpm run build"
+	},
+	"keywords": [
+		"typescript",
+		"error-handling",
+		"try-catch",
+		"result",
+		"utility"
+	],
+	"author": "@itsEzz",
+	"license": "ISC",
+	"devDependencies": {
+		"@types/jest": "^29.5.14",
+		"@typescript-eslint/eslint-plugin": "^8.32.1",
+		"@typescript-eslint/parser": "^8.32.1",
+		"eslint": "^9.27.0",
+		"jest": "^29.7.0",
+		"ts-jest": "^29.3.4",
+		"typescript": "^5.8.3"
+	}
+}
