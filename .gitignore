@@ -1,0 +1,14 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+
+# Test coverage
+coverage/
+
+# Logs
+npm-debug.log*
+
+# TypeScript compilation
+*.tsbuildinfo
