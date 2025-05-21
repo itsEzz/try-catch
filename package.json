@@ -18,7 +18,7 @@
 	"sideEffects": false,
 	"repository": {
 		"type": "git",
-		"url": "https://github.com/itsezz/try-catch.git"
+		"url": "git+https://github.com/itsezz/try-catch.git"
 	},
 	"homepage": "https://github.com/itsezz/try-catch#readme",
 	"bugs": {
