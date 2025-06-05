@@ -88,8 +88,8 @@ export const failure = <E>(error: E): Failure<E> => {
  * @returns A Result object for synchronous functions or Promise<Result> for promises and async functions, containing either data or error
  */
 export function tryCatch<T, E = unknown>(promise: Promise<T>): Promise<Result<T, E>>;
-export function tryCatch<T, E = unknown>(fn: () => Promise<T>): Promise<Result<T, E>>;
 export function tryCatch<T, E = unknown>(fn: () => T): Result<T, E>;
+export function tryCatch<T, E = unknown>(fn: () => Promise<T>): Promise<Result<T, E>>;
 export function tryCatch<T, E = unknown>(
 	fnOrPromise: Promise<T> | (() => MaybePromise<T>)
 ): Result<T, E> | Promise<Result<T, E>> {
