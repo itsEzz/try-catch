@@ -93,21 +93,19 @@ export function tryCatch<T, E = unknown>(fn: () => Promise<T>): Promise<Result<T
 export function tryCatch<T, E = unknown>(
 	fnOrPromise: Promise<T> | (() => MaybePromise<T>)
 ): Result<T, E> | Promise<Result<T, E>> {
-	if (fnOrPromise instanceof Promise) {
-		return fnOrPromise.then((data) => ({ data })).catch((error) => ({ error: error as E })) as Promise<
-			Result<T, E>
-		>;
-	}
+	if (typeof fnOrPromise === 'function') {
+		try {
+			const result = fnOrPromise();
 
-	try {
-		const result = fnOrPromise();
+			if (result instanceof Promise) {
+				return result.then((data) => ({ data })).catch((error) => ({ error: error as E }));
+			}
 
-		if (result instanceof Promise) {
-			return result.then((data) => ({ data })).catch((error) => ({ error: error as E })) as Promise<Result<T, E>>;
+			return { data: result };
+		} catch (error) {
+			return { error: error as E };
 		}
-
-		return { data: result } as Result<T, E>;
-	} catch (error) {
-		return { error: error as E } as Result<T, E>;
 	}
+
+	return fnOrPromise.then((data) => ({ data })).catch((error) => ({ error: error as E }));
 }
