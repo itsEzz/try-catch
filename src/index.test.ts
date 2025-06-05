@@ -1,4 +1,4 @@
-import { tryCatch, isSuccess, isError, success, failure, Result } from './index';
+import { failure, isError, isSuccess, Result, success, tryCatch, tryCatchAsync, tryCatchSync } from './index';
 
 describe('Result Type Utilities', () => {
 	describe('isSuccess', () => {
@@ -34,7 +34,6 @@ describe('tryCatch', () => {
 			expect(result.data).toBe('success');
 		});
 
-		// TODO: Doesn't currently work (typescript issue?)
 		it('should return error result for failed operations', () => {
 			const result = tryCatch(() => {
 				throw new Error('test error');
@@ -94,7 +93,6 @@ describe('tryCatch', () => {
 	});
 
 	describe('edge cases', () => {
-		// TODO: Doesn't currently work (typescript issue?)
 		it('should handle non-Error objects thrown', () => {
 			const result = tryCatch(() => {
 				throw 'string error';
@@ -175,6 +173,101 @@ describe('Success and Failure Constructors', () => {
 			if (isError(stringError)) expect(stringError.error).toBe('string error');
 			if (isError(customError)) expect(customError.error).toEqual({ code: 404, message: 'Not found' });
 		});
+	});
+});
+
+describe('tryCatchSync', () => {
+	it('should return success result for successful sync operations', () => {
+		const result = tryCatchSync(() => 'sync success');
+		expect(isSuccess(result)).toBe(true);
+		if (isSuccess(result)) {
+			expect(result.data).toBe('sync success');
+		}
+	});
+
+	it('should return error result for failed sync operations', () => {
+		const result = tryCatchSync(() => {
+			throw new Error('sync error');
+		});
+		expect(isError(result)).toBe(true);
+		if (isError(result)) {
+			expect(result.error).toBeInstanceOf(Error);
+			expect((result.error as Error).message).toBe('sync error');
+		}
+	});
+
+	it('should handle non-Error objects thrown', () => {
+		const result = tryCatchSync(() => {
+			throw 'string error';
+		});
+		expect(isError(result)).toBe(true);
+		if (isError(result)) {
+			expect(result.error).toBe('string error');
+		}
+	});
+
+	it('should handle null and undefined return values', () => {
+		const nullResult = tryCatchSync(() => null);
+		expect(isSuccess(nullResult)).toBe(true);
+		if (isSuccess(nullResult)) {
+			expect(nullResult.data).toBeNull();
+		}
+
+		const undefinedResult = tryCatchSync(() => undefined);
+		expect(isSuccess(undefinedResult)).toBe(true);
+		if (isSuccess(undefinedResult)) {
+			expect(undefinedResult.data).toBeUndefined();
+		}
+	});
+});
+
+describe('tryCatchAsync', () => {
+	it('should return success result for successful async operations', async () => {
+		const result = await tryCatchAsync(async () => 'async success');
+		expect(isSuccess(result)).toBe(true);
+		if (isSuccess(result)) {
+			expect(result.data).toBe('async success');
+		}
+	});
+
+	it('should return error result for failed async operations', async () => {
+		const result = await tryCatchAsync(async () => {
+			throw new Error('async error');
+		});
+		expect(isError(result)).toBe(true);
+		if (isError(result)) {
+			expect(result.error).toBeInstanceOf(Error);
+			expect((result.error as Error).message).toBe('async error');
+		}
+	});
+
+	it('should handle resolved promises directly', async () => {
+		const promise = Promise.resolve('promise success');
+		const result = await tryCatchAsync(promise);
+		expect(isSuccess(result)).toBe(true);
+		if (isSuccess(result)) {
+			expect(result.data).toBe('promise success');
+		}
+	});
+
+	it('should handle rejected promises directly', async () => {
+		const promise = Promise.reject(new Error('promise error'));
+		const result = await tryCatchAsync(promise);
+		expect(isError(result)).toBe(true);
+		if (isError(result)) {
+			expect(result.error).toBeInstanceOf(Error);
+			expect((result.error as Error).message).toBe('promise error');
+		}
+	});
+
+	it('should handle non-Error objects thrown in async functions', async () => {
+		const result = await tryCatchAsync(async () => {
+			throw 'async string error';
+		});
+		expect(isError(result)).toBe(true);
+		if (isError(result)) {
+			expect(result.error).toBe('async string error');
+		}
 	});
 });
 

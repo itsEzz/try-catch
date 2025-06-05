@@ -87,9 +87,9 @@ export const failure = <E>(error: E): Failure<E> => {
  * @param fnOrPromise The function to execute, promise to await, or async function to call
  * @returns A Result object for synchronous functions or Promise<Result> for promises and async functions, containing either data or error
  */
-export function tryCatch<T, E = unknown>(promise: Promise<T>): Promise<Result<T, E>>;
-export function tryCatch<T, E = unknown>(fn: () => T): Result<T, E>;
 export function tryCatch<T, E = unknown>(fn: () => Promise<T>): Promise<Result<T, E>>;
+export function tryCatch<T, E = unknown>(fn: () => T): Result<T, E>;
+export function tryCatch<T, E = unknown>(promise: Promise<T>): Promise<Result<T, E>>;
 export function tryCatch<T, E = unknown>(
 	fnOrPromise: Promise<T> | (() => MaybePromise<T>)
 ): Result<T, E> | Promise<Result<T, E>> {
@@ -109,3 +109,77 @@ export function tryCatch<T, E = unknown>(
 
 	return fnOrPromise.then((data) => ({ data })).catch((error) => ({ error: error as E }));
 }
+
+/*!
+ * Safely executes a synchronous function, capturing any errors
+ *
+ * This utility is specifically for synchronous operations that might throw errors.
+ * It guarantees a synchronous Result return type, never a Promise.
+ *
+ * @template T The type of the successful result
+ * @template E The type of the error, defaults to unknown
+ * @param fn The synchronous function to execute
+ * @returns A Result object containing either data or error
+ */
+export function tryCatchSync<T, E = unknown>(fn: () => T): Result<T, E> {
+	try {
+		const result = fn();
+		return { data: result };
+	} catch (error) {
+		return { error: error as E };
+	}
+}
+
+/*!
+ * Safely executes an asynchronous function or awaits a promise, capturing any errors
+ *
+ * This utility is specifically for asynchronous operations that might throw errors.
+ * It guarantees a Promise<Result> return type.
+ *
+ * @template T The type of the successful result
+ * @template E The type of the error, defaults to unknown
+ * @param fnOrPromise The async function to execute or promise to await
+ * @returns A Promise<Result> containing either data or error
+ */
+export async function tryCatchAsync<T, E = unknown>(fn: () => Promise<T>): Promise<Result<T, E>>;
+export async function tryCatchAsync<T, E = unknown>(promise: Promise<T>): Promise<Result<T, E>>;
+export async function tryCatchAsync<T, E = unknown>(
+	fnOrPromise: Promise<T> | (() => Promise<T>)
+): Promise<Result<T, E>> {
+	try {
+		const data = typeof fnOrPromise === 'function' ? await fnOrPromise() : await fnOrPromise;
+		return { data };
+	} catch (error) {
+		return { error: error as E };
+	}
+}
+
+/*!
+ * Short alias for tryCatch - safely executes a function or awaits a promise
+ *
+ * @template T The type of the successful result
+ * @template E The type of the error, defaults to unknown
+ * @param fnOrPromise The function to execute, promise to await, or async function to call
+ * @returns A Result object for synchronous functions or Promise<Result> for promises and async functions, containing either data or error
+ */
+export const t = tryCatch;
+
+/*!
+ * Short alias for tryCatchSync - safely executes a synchronous function
+ *
+ * @template T The type of the successful result
+ * @template E The type of the error, defaults to unknown
+ * @param fn The synchronous function to execute
+ * @returns A Result object containing either data or error
+ */
+export const tc = tryCatchSync;
+
+/*!
+ * Short alias for tryCatchAsync - safely executes an async function or awaits a promise
+ *
+ * @template T The type of the successful result
+ * @template E The type of the error, defaults to unknown
+ * @param fnOrPromise The async function to execute or promise to await
+ * @returns A Promise<Result> containing either data or error
+ */
+export const tca = tryCatchAsync;

@@ -5,14 +5,13 @@
 
 A lightweight TypeScript utility for handling errors using Result types, making your code cleaner and more predictable.
 
-## Why Use This?
+## Features
 
-Traditional try/catch blocks often lead to error-prone patterns, early returns, and hard-to-follow control flow. This utility:
-
-- Enforces explicit error handling through type safety
-- Works seamlessly with both sync and async operations
-- Eliminates forgotten try/catch blocks
-- Creates more readable and maintainable code
+- Type-safe error handling with Result types
+- Seamless sync and async operation support
+- Explicit sync/async variants for better type inference
+- Short aliases for convenience
+- Zero dependencies
 
 ## Installation
 
@@ -27,41 +26,39 @@ pnpm add @itsezz/try-catch
 ## Usage
 
 ```typescript
-import { tryCatch, isSuccess, isError } from '@itsezz/try-catch';
+import { isError, isSuccess, tryCatch, tryCatchAsync, tryCatchSync } from '@itsezz/try-catch';
 
-// Synchronous example
-const result = tryCatch(() => JSON.parse('{"name": "user"}'));
+// Synchronous operations
+const result = tryCatchSync(() => JSON.parse('{"name": "user"}'));
 
 if (isSuccess(result)) {
-  // TypeScript knows result.data is the parsed JSON
   console.log(result.data.name); // "user"
 } else {
-  // TypeScript knows result.error is the caught error
   console.error(result.error);
 }
 
-// Async example
-async function fetchUser(id) {
-  const result = await tryCatch(async () => {
-    const response = await fetch(`https://api.example.com/users/${id}`);
-    if (!response.ok) throw new Error(`HTTP error ${response.status}`);
-    return response.json();
-  });
+// Asynchronous operations
+const asyncResult = await tryCatchAsync(async () => {
+  const response = await fetch('/api/user');
+  if (!response.ok) throw new Error(`HTTP ${response.status}`);
+  return response.json();
+});
 
-  // Type-safe error handling
-  if (isSuccess(result)) {
-    return result.data;
-  } else {
-    // Log error and return fallback
-    console.error(result.error);
-    return { name: 'Unknown User' };
-  }
+if (isSuccess(asyncResult)) {
+  return asyncResult.data;
+} else {
+  console.error(asyncResult.error);
+  return { name: 'Unknown' };
 }
+
+// Generic tryCatch (auto-detects sync/async)
+const syncResult = tryCatch(() => 'hello world');
+const asyncResult2 = await tryCatch(async () => 'hello async world');
 ```
 
 ## API
 
-### Core Functions
+### Functions
 
 - **`tryCatch<T, E>(fn: () => T): Result<T, E>`**  
   Executes a synchronous function, capturing any errors.
@@ -72,7 +69,24 @@ async function fetchUser(id) {
 - **`tryCatch<T, E>(promise: Promise<T>): Promise<Result<T, E>>`**  
   Awaits a promise, capturing any errors.
 
-### Type Guards
+- **`tryCatchSync<T, E>(fn: () => T): Result<T, E>`**  
+  Executes synchronous functions, guaranteeing sync Result return.
+
+- **`tryCatchAsync<T, E>(fn: () => Promise<T>): Promise<Result<T, E>>`**  
+  Executes an async function, guaranteeing Promise<Result> return.
+
+- **`tryCatchAsync<T, E>(promise: Promise<T>): Promise<Result<T, E>>`**  
+  Awaits a promise, guaranteeing Promise<Result> return.
+
+> **Note**: `tryCatch` may not correctly infer if the result is `Promise<Result<T,E>>` or `Result<T,E>` in certain conditions and defaults to `Promise<Result<T,E>>` when unsure. Use explicit variants for guaranteed type safety.
+
+### Short Aliases
+
+- **`t`** - `tryCatch`
+- **`tc`** - `tryCatchSync`  
+- **`tca`** - `tryCatchAsync`
+
+### Type Guards & Helpers
 
 - **`isSuccess<T, E>(result: Result<T, E>): result is Success<T>`**  
   Type guard that narrows a result to Success type.
@@ -80,11 +94,9 @@ async function fetchUser(id) {
 - **`isError<T, E>(result: Result<T, E>): result is Failure<E>`**  
   Type guard that narrows a result to Failure type.
 
-### Helper Functions
-
 - **`success<T>(data: T): Success<T>`**  
   Creates a success result with the given data.
-
+  
 - **`failure<E>(error: E): Failure<E>`**  
   Creates a failure result with the given error.
 
