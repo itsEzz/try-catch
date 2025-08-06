@@ -98,16 +98,16 @@ export function tryCatch<T, E = unknown>(
 			const result = fnOrPromise();
 
 			if (result instanceof Promise) {
-				return result.then((data) => ({ data })).catch((error) => ({ error: error as E }));
+				return result.then((data) => success(data)).catch((error) => failure(error as E));
 			}
 
-			return { data: result };
+			return success(result);
 		} catch (error) {
-			return { error: error as E };
+			return failure(error as E);
 		}
 	}
 
-	return fnOrPromise.then((data) => ({ data })).catch((error) => ({ error: error as E }));
+	return fnOrPromise.then((data) => success(data)).catch((error) => failure(error as E));
 }
 
 /*!
@@ -124,9 +124,9 @@ export function tryCatch<T, E = unknown>(
 export function tryCatchSync<T, E = unknown>(fn: () => T): Result<T, E> {
 	try {
 		const result = fn();
-		return { data: result };
+		return success(result);
 	} catch (error) {
-		return { error: error as E };
+		return failure(error as E);
 	}
 }
 
@@ -148,9 +148,9 @@ export async function tryCatchAsync<T, E = unknown>(
 ): Promise<Result<T, E>> {
 	try {
 		const data = typeof fnOrPromise === 'function' ? await fnOrPromise() : await fnOrPromise;
-		return { data };
+		return success(data);
 	} catch (error) {
-		return { error: error as E };
+		return failure(error as E);
 	}
 }
 
