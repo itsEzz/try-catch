@@ -135,9 +135,9 @@ describe('tryCatch', () => {
 			const result = tryCatch(() => {
 				throw new Error('test error');
 			});
-			// @ts-ignore
+			// @ts-expect-error Can't infer type in this case and will fallback to Promise<Result<T, E>>
 			expect(isError(result)).toBe(true);
-			// @ts-ignore
+			// @ts-expect-error Can't infer type in this case and will fallback to Promise<Result<T, E>>
 			if (isError(result)) {
 				expect(result.error).toBeInstanceOf(Error);
 				expect((result.error as Error).message).toBe('test error');
@@ -196,9 +196,9 @@ describe('tryCatch', () => {
 			const result = tryCatch(() => {
 				throw 'string error';
 			});
-			// @ts-ignore
+			// @ts-expect-error Can't infer type in this case and will fallback to Promise<Result<T, E>>
 			expect(isError(result)).toBe(true);
-			// @ts-ignore
+			// @ts-expect-error Can't infer type in this case and will fallback to Promise<Result<T, E>>
 			if (isError(result)) {
 				expect(result.error).toBe('string error');
 			}
@@ -614,12 +614,12 @@ describe('Result Utility Methods', () => {
 
 			const userMessage = match(userResult, {
 				success: (user) => `Hello ${user.name}, you are ${user.age} years old`,
-				failure: (err: any) => `Error ${err.code}: ${err.message}`,
+				failure: (err: { code: number; message: string }) => `Error ${err.code}: ${err.message}`,
 			});
 
 			const errorMessage = match(errorResult, {
 				success: (user: User) => `Hello ${user.name}, you are ${user.age} years old`,
-				failure: (err: any) => `Error ${err.code}: ${err.message}`,
+				failure: (err: { code: number; message: string }) => `Error ${err.code}: ${err.message}`,
 			});
 
 			expect(userMessage).toBe('Hello John, you are 30 years old');
