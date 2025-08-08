@@ -1,6 +1,6 @@
 {
 	"name": "@itsezz/try-catch",
-	"version": "1.1.0",
+	"version": "1.2.0",
 	"description": "A TypeScript utility for elegant error handling with Result types",
 	"main": "dist/index.js",
 	"module": "dist/index.mjs",
