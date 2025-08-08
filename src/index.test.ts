@@ -1,27 +1,124 @@
-import { failure, isError, isSuccess, Result, success, tryCatch, tryCatchAsync, tryCatchSync } from './index';
+import {
+	failure,
+	flatMap,
+	isError,
+	isSuccess,
+	map,
+	match,
+	Result,
+	success,
+	t,
+	tc,
+	tca,
+	tryCatch,
+	tryCatchAsync,
+	tryCatchSync,
+	unwrapOr,
+	unwrapOrElse,
+} from './index';
 
 describe('Result Type Utilities', () => {
 	describe('isSuccess', () => {
 		it('should return true for success results', () => {
-			const result = { data: 'test data' };
+			const result = success('test data');
 			expect(isSuccess(result)).toBe(true);
 		});
 
 		it('should return false for error results', () => {
-			const result = { error: new Error('test error') };
+			const result = failure(new Error('test error'));
 			expect(isSuccess(result)).toBe(false);
 		});
 	});
 
 	describe('isError', () => {
 		it('should return true for error results', () => {
-			const result = { error: new Error('test error') };
+			const result = failure(new Error('test error'));
 			expect(isError(result)).toBe(true);
 		});
 
 		it('should return false for success results', () => {
-			const result = { data: 'test data' };
+			const result = success('test data');
 			expect(isError(result)).toBe(false);
+		});
+	});
+});
+
+describe('Short Aliases', () => {
+	describe('t (tryCatch alias)', () => {
+		it('should work identically to tryCatch for sync functions', () => {
+			const result = t(() => 'success');
+			expect(isSuccess(result)).toBe(true);
+			if (isSuccess(result)) {
+				expect(result.data).toBe('success');
+			}
+		});
+
+		it('should work identically to tryCatch for async functions', async () => {
+			const result = await t(async () => 'async success');
+			expect(isSuccess(result)).toBe(true);
+			if (isSuccess(result)) {
+				expect(result.data).toBe('async success');
+			}
+		});
+
+		it('should work identically to tryCatch for promises', async () => {
+			const promise = Promise.resolve('promise success');
+			const result = await t(promise);
+			expect(isSuccess(result)).toBe(true);
+			if (isSuccess(result)) {
+				expect(result.data).toBe('promise success');
+			}
+		});
+	});
+
+	describe('tc (tryCatchSync alias)', () => {
+		it('should work identically to tryCatchSync', () => {
+			const result = tc(() => 'sync success');
+			expect(isSuccess(result)).toBe(true);
+			if (isSuccess(result)) {
+				expect(result.data).toBe('sync success');
+			}
+		});
+
+		it('should handle errors identically to tryCatchSync', () => {
+			const result = tc(() => {
+				throw new Error('sync error');
+			});
+			expect(isError(result)).toBe(true);
+			if (isError(result)) {
+				expect(result.error).toBeInstanceOf(Error);
+				expect((result.error as Error).message).toBe('sync error');
+			}
+		});
+	});
+
+	describe('tca (tryCatchAsync alias)', () => {
+		it('should work identically to tryCatchAsync for async functions', async () => {
+			const result = await tca(async () => 'async success');
+			expect(isSuccess(result)).toBe(true);
+			if (isSuccess(result)) {
+				expect(result.data).toBe('async success');
+			}
+		});
+
+		it('should work identically to tryCatchAsync for promises', async () => {
+			const promise = Promise.resolve('promise success');
+			const result = await tca(promise);
+			expect(isSuccess(result)).toBe(true);
+			if (isSuccess(result)) {
+				expect(result.data).toBe('promise success');
+			}
+		});
+
+		it('should handle errors identically to tryCatchAsync', async () => {
+			const result = await tca(async () => {
+				throw new Error('async error');
+			});
+			expect(isError(result)).toBe(true);
+			if (isError(result)) {
+				expect(result.error).toBeInstanceOf(Error);
+				expect((result.error as Error).message).toBe('async error');
+			}
 		});
 	});
 });
@@ -38,7 +135,9 @@ describe('tryCatch', () => {
 			const result = tryCatch(() => {
 				throw new Error('test error');
 			});
+			// @ts-ignore
 			expect(isError(result)).toBe(true);
+			// @ts-ignore
 			if (isError(result)) {
 				expect(result.error).toBeInstanceOf(Error);
 				expect((result.error as Error).message).toBe('test error');
@@ -97,7 +196,9 @@ describe('tryCatch', () => {
 			const result = tryCatch(() => {
 				throw 'string error';
 			});
+			// @ts-ignore
 			expect(isError(result)).toBe(true);
+			// @ts-ignore
 			if (isError(result)) {
 				expect(result.error).toBe('string error');
 			}
@@ -311,5 +412,218 @@ describe('Type Safety', () => {
 		} else {
 			fail('Result should be a failure');
 		}
+	});
+});
+
+describe('Result Utility Methods', () => {
+	describe('map', () => {
+		it('should transform successful results', () => {
+			const result = success(5);
+			const mapped = map(result, (x) => x * 2);
+
+			expect(isSuccess(mapped)).toBe(true);
+			if (isSuccess(mapped)) {
+				expect(mapped.data).toBe(10);
+			}
+		});
+
+		it('should pass through failures unchanged', () => {
+			const error = new Error('test error');
+			const result = failure(error);
+			const mapped = map(result, (x: number) => x * 2);
+
+			expect(isError(mapped)).toBe(true);
+			if (isError(mapped)) {
+				expect(mapped.error).toBe(error);
+			}
+		});
+
+		it('should handle type transformations', () => {
+			const result = success(42);
+			const mapped = map(result, (x) => x.toString());
+
+			expect(isSuccess(mapped)).toBe(true);
+			if (isSuccess(mapped)) {
+				expect(mapped.data).toBe('42');
+				expect(typeof mapped.data).toBe('string');
+			}
+		});
+	});
+
+	describe('flatMap', () => {
+		it('should chain successful operations', () => {
+			const result = success(5);
+			const chained = flatMap(result, (x) => success(x * 2));
+
+			expect(isSuccess(chained)).toBe(true);
+			if (isSuccess(chained)) {
+				expect(chained.data).toBe(10);
+			}
+		});
+
+		it('should handle failures in the chain', () => {
+			const result = success(5);
+			const error = new Error('chain error');
+			const chained = flatMap(result, () => failure(error));
+
+			expect(isError(chained)).toBe(true);
+			if (isError(chained)) {
+				expect(chained.error).toBe(error);
+			}
+		});
+
+		it('should pass through original failures', () => {
+			const error = new Error('original error');
+			const result = failure(error);
+			const chained = flatMap(result, (x: number) => success(x * 2));
+
+			expect(isError(chained)).toBe(true);
+			if (isError(chained)) {
+				expect(chained.error).toBe(error);
+			}
+		});
+
+		it('should enable complex chaining', () => {
+			const parseNumber = (str: string): Result<number, string> => {
+				const num = parseInt(str, 10);
+				return isNaN(num) ? failure('Not a number') : success(num);
+			};
+
+			const double = (x: number): Result<number, string> => success(x * 2);
+
+			const result1 = flatMap(success('5'), parseNumber);
+			const result2 = flatMap(result1, double);
+
+			expect(isSuccess(result2)).toBe(true);
+			if (isSuccess(result2)) {
+				expect(result2.data).toBe(10);
+			}
+
+			const result3 = flatMap(success('not-a-number'), parseNumber);
+			expect(isError(result3)).toBe(true);
+			if (isError(result3)) {
+				expect(result3.error).toBe('Not a number');
+			}
+		});
+	});
+
+	describe('unwrapOr', () => {
+		it('should return data for successful results', () => {
+			const result = success('hello');
+			const value = unwrapOr(result, 'default');
+
+			expect(value).toBe('hello');
+		});
+
+		it('should return default value for failures', () => {
+			const result = failure(new Error('test error'));
+			const value = unwrapOr(result, 'default');
+
+			expect(value).toBe('default');
+		});
+
+		it('should work with different types', () => {
+			const numberResult = success(42);
+			const numberValue = unwrapOr(numberResult, 0);
+			expect(numberValue).toBe(42);
+
+			const failedNumberResult = failure('error');
+			const defaultNumber = unwrapOr(failedNumberResult, 0);
+			expect(defaultNumber).toBe(0);
+		});
+	});
+
+	describe('unwrapOrElse', () => {
+		it('should return data for successful results', () => {
+			const result = success('hello');
+			const value = unwrapOrElse(result, () => 'computed default');
+
+			expect(value).toBe('hello');
+		});
+
+		it('should compute default value using error for failures', () => {
+			const error = new Error('test error');
+			const result = failure(error);
+			const value = unwrapOrElse(result, (err) => `Error: ${(err as Error).message}`);
+
+			expect(value).toBe('Error: test error');
+		});
+
+		it('should work with custom error types', () => {
+			interface CustomError {
+				code: number;
+				message: string;
+			}
+
+			const customError: CustomError = { code: 404, message: 'Not found' };
+			const result = failure(customError);
+			const value = unwrapOrElse(result, (err) => `${err.code}: ${err.message}`);
+
+			expect(value).toBe('404: Not found');
+		});
+	});
+
+	describe('match', () => {
+		it('should handle successful results', () => {
+			const result = success('hello');
+			const message = match(result, {
+				success: (data) => `Success: ${data}`,
+				failure: (error) => `Error: ${error}`,
+			});
+
+			expect(message).toBe('Success: hello');
+		});
+
+		it('should handle failed results', () => {
+			const error = new Error('test error');
+			const result = failure(error);
+			const message = match(result, {
+				success: (data) => `Success: ${data}`,
+				failure: (err) => `Error: ${(err as Error).message}`,
+			});
+
+			expect(message).toBe('Error: test error');
+		});
+
+		it('should work with different return types', () => {
+			const successResult = success(42);
+			const failureResult = failure('error');
+
+			const successLength = match(successResult, {
+				success: (data) => data.toString().length,
+				failure: () => 0,
+			});
+
+			const failureLength = match(failureResult, {
+				success: (data: number) => data.toString().length,
+				failure: () => 0,
+			});
+
+			expect(successLength).toBe(2); // "42".length
+			expect(failureLength).toBe(0);
+		});
+
+		it('should enable complex pattern matching', () => {
+			interface User {
+				name: string;
+				age: number;
+			}
+
+			const userResult = success({ name: 'John', age: 30 });
+			const errorResult = failure({ code: 404, message: 'User not found' });
+
+			const userMessage = match(userResult, {
+				success: (user) => `Hello ${user.name}, you are ${user.age} years old`,
+				failure: (err: any) => `Error ${err.code}: ${err.message}`,
+			});
+
+			const errorMessage = match(errorResult, {
+				success: (user: User) => `Hello ${user.name}, you are ${user.age} years old`,
+				failure: (err: any) => `Error ${err.code}: ${err.message}`,
+			});
+
+			expect(userMessage).toBe('Hello John, you are 30 years old');
+			expect(errorMessage).toBe('Error 404: User not found');
+		});
 	});
 });

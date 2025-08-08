@@ -76,6 +76,82 @@ export const failure = <E>(error: E): Failure<E> => {
 };
 
 /*!
+ * Transforms the data of a successful result using the provided function
+ * If the result is a failure, returns the failure unchanged
+ *
+ * @template T The type of the original successful data
+ * @template U The type of the transformed data
+ * @template E The type of the error
+ * @param result The result to transform
+ * @param fn The transformation function
+ * @returns A new Result with transformed data or the original failure
+ */
+export const map = <T, U, E>(result: Result<T, E>, fn: (data: T) => U): Result<U, E> => {
+	return isSuccess(result) ? success(fn(result.data)) : result;
+};
+
+/*!
+ * Transforms the data of a successful result using a function that returns a Result
+ * If the result is a failure, returns the failure unchanged
+ *
+ * @template T The type of the original successful data
+ * @template U The type of the transformed data
+ * @template E The type of the error
+ * @param result The result to transform
+ * @param fn The transformation function that returns a Result
+ * @returns A new Result with transformed data or a failure
+ */
+export const flatMap = <T, U, E>(result: Result<T, E>, fn: (data: T) => Result<U, E>): Result<U, E> => {
+	return isSuccess(result) ? fn(result.data) : result;
+};
+
+/*!
+ * Extracts the data from a successful result or returns a default value
+ *
+ * @template T The type of the successful data
+ * @template E The type of the error
+ * @param result The result to unwrap
+ * @param defaultValue The default value to return if the result is a failure
+ * @returns The data if successful, otherwise the default value
+ */
+export const unwrapOr = <T, E>(result: Result<T, E>, defaultValue: T): T => {
+	return isSuccess(result) ? result.data : defaultValue;
+};
+
+/*!
+ * Extracts the data from a successful result or computes a default value using the error
+ *
+ * @template T The type of the successful data
+ * @template E The type of the error
+ * @param result The result to unwrap
+ * @param fn Function that takes the error and returns a default value
+ * @returns The data if successful, otherwise the computed default value
+ */
+export const unwrapOrElse = <T, E>(result: Result<T, E>, fn: (error: E) => T): T => {
+	return isSuccess(result) ? result.data : fn(result.error);
+};
+
+/*!
+ * Pattern matching for Result types - handles both success and failure cases
+ *
+ * @template T The type of the successful data
+ * @template E The type of the error
+ * @template U The return type of both match functions
+ * @param result The result to match against
+ * @param handlers Object containing success and failure handler functions
+ * @returns The result of calling the appropriate handler function
+ */
+export const match = <T, E, U>(
+	result: Result<T, E>,
+	handlers: {
+		success: (data: T) => U;
+		failure: (error: E) => U;
+	}
+): U => {
+	return isSuccess(result) ? handlers.success(result.data) : handlers.failure(result.error);
+};
+
+/*!
  * Safely executes a function or awaits a promise, capturing any errors
  *
  * This utility provides a consistent way to handle both synchronous and asynchronous
