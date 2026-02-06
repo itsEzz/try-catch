@@ -1,17 +1,14 @@
-import { defineConfig } from 'tsup';
+import { defineConfig } from 'tsdown';
 
 export default defineConfig({
 	entry: ['src/index.ts'],
 	format: ['cjs', 'esm'],
-	dts: true,
 	sourcemap: true,
-	clean: true,
-	esbuildOptions(options) {
-		options.legalComments = 'inline';
-	},
-	outExtension({ format }) {
+	outputOptions: { legalComments: 'inline' },
+	outExtensions({ format }) {
 		return {
 			js: format === 'cjs' ? '.js' : '.mjs',
 		};
 	},
+	target: false,
 });
