@@ -49,6 +49,8 @@ return null;
 | `tryCatchSync()`  | `tc()`      | `Result`                    | Guaranteed sync         |
 | `tryCatchAsync()` | `tca()`     | `Promise<Result>`           | Guaranteed async        |
 
+> **Note**: `tryCatch` may not correctly infer if the result is `Promise<Result<T,E>>` or `Result<T,E>` in certain conditions and defaults to `Promise<Result<T,E>>` when unsure. Use explicit variants for guaranteed type safety.
+
 ### Create Results
 
 ```typescript
