@@ -41,6 +41,59 @@ describe('Result Type Utilities', () => {
 			expect(isError(result)).toBe(false);
 		});
 	});
+
+	describe('ok property', () => {
+		it('should be true for success results', () => {
+			const result = success('test data');
+			expect(result.ok).toBe(true);
+		});
+
+		it('should be false for error results', () => {
+			const result = failure(new Error('test error'));
+			expect(result.ok).toBe(false);
+		});
+
+		it('should enable type narrowing for success results', () => {
+			const result: Result<string, Error> = success('test');
+			if (result.ok) {
+				const data: string = result.data;
+				expect(typeof data).toBe('string');
+			} else {
+				fail('Result should be a success');
+			}
+		});
+
+		it('should enable type narrowing for error results', () => {
+			const error = new Error('test error');
+			const result: Result<string, Error> = failure(error);
+			if (!result.ok) {
+				const err: Error = result.error;
+				expect(err instanceof Error).toBe(true);
+			} else {
+				fail('Result should be a failure');
+			}
+		});
+
+		it('should work with tryCatch results', () => {
+			const successResult = tryCatch(() => 'data');
+			expect(successResult.ok).toBe(true);
+
+			const errorResult = tryCatchSync(() => {
+				throw new Error('error');
+			});
+			expect(errorResult.ok).toBe(false);
+		});
+
+		it('should work with async tryCatch results', async () => {
+			const successResult = await tryCatch(async () => 'async data');
+			expect(successResult.ok).toBe(true);
+
+			const errorResult = await tryCatchAsync(async () => {
+				throw new Error('async error');
+			});
+			expect(errorResult.ok).toBe(false);
+		});
+	});
 });
 
 describe('Short Aliases', () => {

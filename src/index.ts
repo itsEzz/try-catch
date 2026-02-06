@@ -5,6 +5,7 @@
 export type Success<T> = {
 	data: T;
 	error?: never;
+	readonly ok: true;
 };
 
 /*!
@@ -14,6 +15,7 @@ export type Success<T> = {
 export type Failure<E> = {
 	data?: never;
 	error: E;
+	readonly ok: false;
 };
 
 /*!
@@ -61,7 +63,7 @@ export const isError = <T, E>(result: Result<T, E>): result is Failure<E> => {
  * @returns A Success object containing the data
  */
 export const success = <T>(data: T): Success<T> => {
-	return { data };
+	return { data, ok: true };
 };
 
 /*!
@@ -72,7 +74,7 @@ export const success = <T>(data: T): Success<T> => {
  * @returns A Failure object containing the error
  */
 export const failure = <E>(error: E): Failure<E> => {
-	return { error };
+	return { error, ok: false };
 };
 
 /*!
@@ -146,7 +148,7 @@ export const match = <T, E, U>(
 	handlers: {
 		success: (data: T) => U;
 		failure: (error: E) => U;
-	}
+	},
 ): U => {
 	return isSuccess(result) ? handlers.success(result.data) : handlers.failure(result.error);
 };
@@ -156,7 +158,7 @@ export const match = <T, E, U>(
  *
  * This utility provides a consistent way to handle both synchronous and asynchronous
  * operations that might throw errors. It returns a Result object that can be checked
- * with isSuccess or isError.
+ * with isSuccess, isError, or the ok property.
  *
  * @template T The type of the successful result
  * @template E The type of the error, defaults to unknown
@@ -167,7 +169,7 @@ export function tryCatch<T, E = unknown>(fn: () => Promise<T>): Promise<Result<T
 export function tryCatch<T, E = unknown>(fn: () => T): Result<T, E>;
 export function tryCatch<T, E = unknown>(promise: Promise<T>): Promise<Result<T, E>>;
 export function tryCatch<T, E = unknown>(
-	fnOrPromise: Promise<T> | (() => MaybePromise<T>)
+	fnOrPromise: Promise<T> | (() => MaybePromise<T>),
 ): Result<T, E> | Promise<Result<T, E>> {
 	if (typeof fnOrPromise === 'function') {
 		try {
@@ -220,7 +222,7 @@ export function tryCatchSync<T, E = unknown>(fn: () => T): Result<T, E> {
 export async function tryCatchAsync<T, E = unknown>(fn: () => Promise<T>): Promise<Result<T, E>>;
 export async function tryCatchAsync<T, E = unknown>(promise: Promise<T>): Promise<Result<T, E>>;
 export async function tryCatchAsync<T, E = unknown>(
-	fnOrPromise: Promise<T> | (() => Promise<T>)
+	fnOrPromise: Promise<T> | (() => Promise<T>),
 ): Promise<Result<T, E>> {
 	try {
 		const data = typeof fnOrPromise === 'function' ? await fnOrPromise() : await fnOrPromise;
