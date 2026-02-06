@@ -1,7 +1,6 @@
 # @itsezz/try-catch
 
 [![npm version](https://img.shields.io/npm/v/@itsezz/try-catch.svg)](https://npmjs.com/package/@itsezz/try-catch)
-[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/MIT)
 
 Type-safe error handling for TypeScript. No more `try/catch` blocks.
 
