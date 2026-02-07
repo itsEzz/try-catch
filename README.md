@@ -24,7 +24,7 @@ Use `result.ok` to check success/failure with full TypeScript narrowing.
 ## Quick Start
 
 ```typescript
-import { tryCatch } from '@itsezz/try-catch';
+import { tryCatch, isError } from '@itsezz/try-catch';
 
 // Sync
 const result = tryCatch(() => JSON.parse('{"name":"user"}'));
@@ -35,8 +35,8 @@ else console.error(result.error);
 // Async
 const user = await tryCatch(fetch('/api/user').then(r => r.json()));
 
-if (user.ok) return user.data;
-return null;
+if (isError(user)) return null;
+return user.data;
 ```
 
 ## API
