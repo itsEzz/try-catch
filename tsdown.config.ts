@@ -4,6 +4,10 @@ export default defineConfig({
 	entry: ['src/index.ts'],
 	format: ['cjs', 'esm'],
 	sourcemap: true,
-	outputOptions: { legalComments: 'inline' },
+	outputOptions: {
+		comments: {
+			legal: true,
+		},
+	},
 	target: false,
 });
