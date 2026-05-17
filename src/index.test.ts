@@ -1,4 +1,5 @@
 import {
+	all,
 	failure,
 	flatMap,
 	isError,
@@ -556,6 +557,38 @@ describe('Result Utility Methods', () => {
 			expect(isError(result3)).toBe(true);
 			if (isError(result3)) {
 				expect(result3.error).toBe('Not a number');
+			}
+		});
+	});
+
+	describe('all', () => {
+		it('should combine multiple successful results', () => {
+			const results = [success(1), success(2), success(3)];
+			const combined = all(results);
+
+			expect(isSuccess(combined)).toBe(true);
+			if (isSuccess(combined)) {
+				expect(combined.data).toEqual([1, 2, 3]);
+			}
+		});
+
+		it('should return the first failure encountered', () => {
+			const error1 = new Error('error 1');
+			const error2 = new Error('error 2');
+			const results = [success(1), failure(error1), failure(error2)];
+			const combined = all(results);
+
+			expect(isError(combined)).toBe(true);
+			if (isError(combined)) {
+				expect(combined.error).toBe(error1);
+			}
+		});
+
+		it('should handle an empty array', () => {
+			const combined = all([]);
+			expect(isSuccess(combined)).toBe(true);
+			if (isSuccess(combined)) {
+				expect(combined.data).toEqual([]);
 			}
 		});
 	});
