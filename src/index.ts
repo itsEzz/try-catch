@@ -40,7 +40,7 @@ export type MaybePromise<T> = T | Promise<T>;
  * @returns True if the result represents a successful operation
  */
 export const isSuccess = <T, E>(result: Result<T, E>): result is Success<T> => {
-	return 'data' in result;
+	return result.ok === true;
 };
 
 /*!
@@ -52,7 +52,7 @@ export const isSuccess = <T, E>(result: Result<T, E>): result is Success<T> => {
  * @returns True if the result represents a failed operation
  */
 export const isError = <T, E>(result: Result<T, E>): result is Failure<E> => {
-	return 'error' in result;
+	return result.ok === false;
 };
 
 /*!
@@ -105,6 +105,25 @@ export const map = <T, U, E>(result: Result<T, E>, fn: (data: T) => U): Result<U
  */
 export const flatMap = <T, U, E>(result: Result<T, E>, fn: (data: T) => Result<U, E>): Result<U, E> => {
 	return isSuccess(result) ? fn(result.data) : result;
+};
+
+/*!
+ * Combines multiple results into a single result.
+ * If all results are successful, returns a success result containing an array of all data.
+ * If any result is a failure, returns the first failure encountered.
+ *
+ * @template T The type of the successful data
+ * @template E The type of the error
+ * @param results Array of results to combine
+ * @returns A Result containing an array of data or the first failure
+ */
+export const all = <T, E>(results: Result<T, E>[]): Result<T[], E> => {
+	const data: T[] = [];
+	for (const result of results) {
+		if (isError(result)) return result;
+		data.push(result.data);
+	}
+	return success(data);
 };
 
 /*!
