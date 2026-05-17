@@ -1,147 +1,241 @@
 # @itsezz/try-catch
 
-[![npm version](https://img.shields.io/npm/v/@itsezz/try-catch.svg)](https://npmjs.com/package/@itsezz/try-catch)
+<div align="center">
 
-Type-safe error handling for TypeScript. No more `try/catch` blocks.
+[![npm version](https://img.shields.io/npm/v/@itsezz/try-catch?color=2563eb&style=flat-square)](https://www.npmjs.com/package/@itsezz/try-catch)
+[![npm downloads](https://img.shields.io/npm/dm/@itsezz/try-catch?color=2563eb&style=flat-square)](https://www.npmjs.com/package/@itsezz/try-catch)
+[![license](https://img.shields.io/npm/l/@itsezz/try-catch?color=10b981&style=flat-square)](https://github.com/itsEzz/try-catch/blob/main/LICENSE)
+[![TypeScript](https://img.shields.io/badge/TypeScript-Ready-3178c6?style=flat-square)](https://www.typescriptlang.org/)
+[![Bundle Size](https://img.shields.io/bundlephobia/min/@itsezz/try-catch?color=f59e0b&style=flat-square)](https://bundlephobia.com/package/@itsezz/try-catch)
 
-## Install
+A lightweight TypeScript utility for elegant error handling using the **Result pattern**. Say goodbye to messy try/catch blocks and hello to type-safe, composable error management.
+
+</div>
+
+## Why Result Pattern?
+
+- ✅ **Explicit errors** — every failure is a deliberate return value
+- ✅ **Full type safety** — TypeScript knows exactly what's possible
+- ✅ **Composable** — chain operations without nesting
+
+## Installation
 
 ```bash
+# npm
 npm install @itsezz/try-catch
+
+# pnpm
+pnpm add @itsezz/try-catch
+
+# yarn
+yarn add @itsezz/try-catch
 ```
-
-## Result Types
-
-```typescript
-type Result<T, E = Error> = Success<T> | Failure<E>;
-
-type Success<T> = { data: T; error?: never; ok: true };
-type Failure<E> = { data?: never; error: E; ok: false };
-```
-
-Use `result.ok` to check success/failure with full TypeScript narrowing.
 
 ## Quick Start
 
 ```typescript
+import { tryCatch, isSuccess } from '@itsezz/try-catch';
+
+// Wrap any operation that might fail
+const result = tryCatch(() => JSON.parse(userInput));
+
+// Handle both cases explicitly
+if (isSuccess(result)) {
+  console.log('Parsed data:', result.data); // ✅ Fully typed!
+} else {
+  console.error('Parse failed:', result.error); // ✅ Error is typed!
+}
+```
+
+## The Result Type
+
+At the core is the `Result<T, E>` type — a discriminated union that represents either success or failure:
+
+```typescript
+type Result<T, E = Error> = 
+  | { ok: true; data: T; error?: never }   // Success case
+  | { ok: false; data?: never; error: E }; // Failure case
+```
+
+The `ok` property acts as a discriminant, enabling perfect type narrowing.
+
+## Usage
+
+### Synchronous Functions
+
+```typescript
+import { tryCatch, isSuccess } from '@itsezz/try-catch';
+
+const result = tryCatch(() => {
+  const data = fs.readFileSync('config.json', 'utf-8');
+  return JSON.parse(data);
+});
+
+if (isSuccess(result)) {
+  console.log(result.data); // TypeScript knows this is the read config file content
+} else {
+  console.error(result.error.message);
+}
+```
+
+### Asynchronous Operations
+
+```typescript
 import { tryCatch, isError } from '@itsezz/try-catch';
 
-// Sync
-const result = tryCatch(() => JSON.parse('{"name":"user"}'));
-
-if (result.ok) console.log(result.data.name); // "user"
-else console.error(result.error);
-
-// Async
 const user = await tryCatch(fetch('/api/user').then(r => r.json()));
 
-if (isError(user)) return null;
-return user.data;
+if (isError(user)) {
+  handleError(user.error);
+  return;
+}
+
+console.log(user.data.name); // Fully typed!
 ```
 
-## API
+### Explicit Context
 
-### Functions
-
-| Function          | Short alias | Returns                     | Description             |
-| ----------------- | ----------- | --------------------------- | ----------------------- |
-| `tryCatch()`      | `t()`       | `Result \| Promise<Result>` | Auto-detects sync/async |
-| `tryCatchSync()`  | `tc()`      | `Result`                    | Guaranteed sync         |
-| `tryCatchAsync()` | `tca()`     | `Promise<Result>`           | Guaranteed async        |
-
-> **Note**: `tryCatch` may not correctly infer if the result is `Promise<Result<T,E>>` or `Result<T,E>` in certain conditions and defaults to `Promise<Result<T,E>>` when unsure. Use explicit variants for guaranteed type safety.
-
-### Create Results
+Need to guarantee sync or async? Use the specific variants:
 
 ```typescript
-success(42)     // { data: 42, ok: true }
-failure('err')  // { error: 'err', ok: false }
+import { tryCatchSync, tryCatchAsync } from '@itsezz/try-catch';
+
+// Always returns Result<T, E> (never a Promise)
+const syncResult = tryCatchSync(() => expensiveCalculation());
+
+// Always returns Promise<Result<T, E>>
+const asyncResult = await tryCatchAsync(fetchUser(id));
 ```
 
-### Check Results
+## API Reference
+
+### Core Functions
+
+| Function          | Description                                      |
+| ----------------- | ------------------------------------------------ |
+| `tryCatch()  `    | Auto-detects sync/async and returns accordingly* |
+| `tryCatchSync()`  | Guarantees synchronous `Result<T, E>`            |
+| `tryCatchAsync()` | Guarantees `Promise<Result<T, E>>`               |
+| `t()`             | Short alias for `tryCatch`                       |
+| `tc()`            | Short alias for `tryCatchSync`                   |
+| `tca()`           | Short alias for `tryCatchAsync`                  |
+
+> \* `tryCatch` may not correctly infer if the result is `Promise<Result<T,E>>` or `Result<T,E>` in certain conditions and defaults to `Promise<Result<T,E>>` when unsure. Use explicit variants for guaranteed type safety.
+
+### Type Guards
 
 ```typescript
-if (result.ok) result.data; // Success<T>
-else result.error;          // Failure<E>
-
-isSuccess(result);  // type guard
-isError(result);    // type guard
+isSuccess(result) // Returns true if ok === true
+isError(result)   // Returns true if ok === false
 ```
 
-### Transform Results
+### Transformation
 
 ```typescript
-map(result, fn)             // transform success value
-flatMap(result, fn)         // chain operations returning Result
-unwrapOr(result, default)   // get value or default
-unwrapOrElse(result, fn)    // get value or compute from error
-match(result, {             // pattern matching
-  success: (data) => ...,
-  failure: (error) => ...
-})
+// Transform success data, pass through errors
+map(result, (data) => data.toUpperCase())
+
+// Chain another operation that might fail
+flatMap(result, (data) => tryCatchSync(() => validate(data)))
+```
+
+### Combination
+
+```typescript
+const results = await Promise.all([
+  tryCatchAsync(fetchUser(1)),
+  tryCatchAsync(fetchUser(2)),
+  tryCatchAsync(fetchUser(3)),
+]);
+
+// Returns all data if all succeed, or first error if any fail
+const allUsers = all(results);
+```
+
+### Error Handling
+
+```typescript
+// Pattern matching
+match(result, {
+  success: (data) => process(data),
+  failure: (error) => logError(error),
+});
+
+// Get data or default
+const value = unwrapOr(result, defaultValue);
+
+// Get data or compute from error
+const value = unwrapOrElse(result, (error) => computeFallback(error));
 ```
 
 ## Examples
 
-### Safe JSON Parsing
+### Custom Error Types
 
 ```typescript
-const json = tryCatch(() => JSON.parse(input));
-
-if (!json.ok) return { error: 'Invalid JSON' };
-return json.data;
-```
-
-### API Request with Type Safety
-
-```typescript
-interface User {
-  id: number;
-  name: string;
+interface ApiError {
+  code: number;
+  message: string;
 }
 
-const fetchUser = async (): Promise<User | null> => {
-  const result = await tryCatch(fetch('/api/user').then(r => r.json()));
-  if (result.ok) return result.data;
-  return null;
-};
-```
+const result = tryCatchSync<User, ApiError>(() => {
+  if (!user) throw { code: 404, message: 'User not found' };
+  return user;
+});
 
-### Validation
-
-```typescript
-const validate = (input: unknown): Result<User, string[]> => {
-  const parsed = tryCatch(() => JSON.parse(input as string));
-  if (!parsed.ok) return failure(['Invalid JSON']);
-
-  const errors: string[] = [];
-  if (!parsed.data.name) errors.push('Name required');
-
-  return errors.length > 0 ? failure(errors) : success(parsed.data);
-};
+if (!result.ok) {
+  // result.error is typed as ApiError
+  console.log(result.error.code); // ✅ No type assertion needed!
+}
 ```
 
 ### Functional Pipeline
 
 ```typescript
-const result = unwrapOr(
-  flatMap(success('42'), s => success(parseInt(s))),
-  0
-); // 84
+import { tryCatchAsync, flatMap, map, all } from '@itsezz/try-catch';
+
+const getUserWithPosts = async (userId: string) => {
+  const userResult = await tryCatchAsync(fetchUser(userId));
+  
+  return flatMap(userResult, async (user) => {
+    const [postsResult, profileResult] = await all([
+      tryCatchAsync(fetchPosts(userId)),
+      tryCatchAsync(fetchProfile(userId)),
+    ]);
+    
+    if (!postsResult.ok) return postsResult;
+    if (!profileResult.ok) return profileResult;
+    
+    return { ...user, posts: postsResult.data, profile: profileResult.data };
+  });
+};
 ```
 
-## FAQ
+### Safe JSON Parsing
 
-**Default error type?** `Error`. Use generics for custom types:
 ```typescript
-tryCatch<number, ApiError>(() => fetchData())
-```
+import { tryCatch } from '@itsezz/try-catch';
 
-**When to use each variant?**
-- `tryCatch`: Don't care about sync/async distinction
-- `tryCatchSync`: Need guaranteed sync return
-- `tryCatchAsync`: Need guaranteed `Promise<Result>` return
+const safeJsonParse = <T>(json: string): T | null => {
+  const result = tryCatch(() => JSON.parse(json) as T);
+  return result.ok ? result.data : null;
+};
+
+// Usage
+const config = safeJsonParse<Config>(rawJson);
+if (config) {
+  // Use config...
+}
+```
 
 ## License
 
-MIT
+MIT © [itsEzz](https://github.com/itsEzz)
+
+---
+
+<div align="center">
+
+**⭐ If you find this useful, consider starring the repo! ⭐**
+
+</div>
