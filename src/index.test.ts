@@ -15,7 +15,7 @@ import {
 	tryCatchSync,
 	unwrapOr,
 	unwrapOrElse,
-} from './index';
+} from './index.js';
 
 describe('Result Type Utilities', () => {
 	describe('isSuccess', () => {

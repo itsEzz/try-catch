@@ -33,9 +33,9 @@
 	},
 	"scripts": {
 		"build": "tsdown",
-		"test": "jest",
-		"test:watch": "jest --watch",
-		"test:coverage": "jest --coverage",
+		"test": "node --experimental-vm-modules node_modules/jest/bin/jest.js",
+		"test:watch": "node --experimental-vm-modules node_modules/jest/bin/jest.js --watch",
+		"test:coverage": "node --experimental-vm-modules node_modules/jest/bin/jest.js --coverage",
 		"lint": "eslint src --ext .ts",
 		"lint:fix": "eslint src --ext .ts --fix",
 		"prepublishOnly": "pnpm run lint && pnpm run test && pnpm run build",
@@ -53,11 +53,11 @@
 	"devDependencies": {
 		"@eslint/js": "^10.0.1",
 		"@types/jest": "^30.0.0",
-		"eslint": "^10.0.3",
-		"jest": "^30.3.0",
-		"ts-jest": "^29.4.6",
-		"tsdown": "^0.21.4",
-		"typescript": "^5.9.3",
-		"typescript-eslint": "^8.57.1"
+		"eslint": "^10.4.0",
+		"jest": "^30.4.2",
+		"ts-jest": "^29.4.9",
+		"tsdown": "^0.22.0",
+		"typescript": "^6.0.3",
+		"typescript-eslint": "^8.59.3"
 	}
 }
