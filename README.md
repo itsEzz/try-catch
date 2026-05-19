@@ -189,28 +189,6 @@ if (!result.ok) {
 }
 ```
 
-### Functional Pipeline
-
-```typescript
-import { tryCatchAsync, flatMap, map, all } from '@itsezz/try-catch';
-
-const getUserWithPosts = async (userId: string) => {
-  const userResult = await tryCatchAsync(fetchUser(userId));
-  
-  return flatMap(userResult, async (user) => {
-    const [postsResult, profileResult] = await all([
-      tryCatchAsync(fetchPosts(userId)),
-      tryCatchAsync(fetchProfile(userId)),
-    ]);
-    
-    if (!postsResult.ok) return postsResult;
-    if (!profileResult.ok) return profileResult;
-    
-    return { ...user, posts: postsResult.data, profile: profileResult.data };
-  });
-};
-```
-
 ### Safe JSON Parsing
 
 ```typescript
