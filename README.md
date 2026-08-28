@@ -6,7 +6,6 @@
 [![npm downloads](https://img.shields.io/npm/dm/@itsezz/try-catch?color=2563eb&style=flat-square)](https://www.npmjs.com/package/@itsezz/try-catch)
 [![license](https://img.shields.io/npm/l/@itsezz/try-catch?color=10b981&style=flat-square)](https://github.com/itsEzz/try-catch/blob/main/LICENSE)
 [![TypeScript](https://img.shields.io/badge/TypeScript-Ready-3178c6?style=flat-square)](https://www.typescriptlang.org/)
-[![Bundle Size](https://img.shields.io/bundlephobia/min/@itsezz/try-catch?color=f59e0b&style=flat-square)](https://bundlephobia.com/package/@itsezz/try-catch)
 
 A lightweight TypeScript utility for elegant error handling using the **Result pattern**. Say goodbye to messy try/catch blocks and hello to type-safe, composable error management.
 
