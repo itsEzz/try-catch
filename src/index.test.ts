@@ -5,10 +5,13 @@ import {
 	isError,
 	isSuccess,
 	map,
+	mapError,
 	match,
 	Result,
 	success,
 	t,
+	tap,
+	tapAsync,
 	tc,
 	tca,
 	tryCatch,
@@ -558,6 +561,215 @@ describe('Result Utility Methods', () => {
 			if (isError(result3)) {
 				expect(result3.error).toBe('Not a number');
 			}
+		});
+	});
+
+	describe('mapError', () => {
+		it('should transform failed results', () => {
+			const error = new Error('original');
+			const mapped = mapError(failure(error), (err) => `wrapped: ${err.message}`);
+
+			expect(isError(mapped)).toBe(true);
+			if (isError(mapped)) {
+				expect(mapped.error).toBe('wrapped: original');
+			}
+		});
+
+		it('should pass through successes unchanged', () => {
+			const result = success(42);
+			const mapped = mapError(result, () => 'should not run');
+
+			expect(isSuccess(mapped)).toBe(true);
+			if (isSuccess(mapped)) {
+				expect(mapped.data).toBe(42);
+			}
+		});
+
+		it('should handle error type transformations', () => {
+			interface ApiError {
+				code: number;
+				message: string;
+			}
+
+			const mapped = mapError<string, Error, ApiError>(
+				failure(new Error('Not found')),
+				(err): ApiError => ({
+					code: 404,
+					message: err.message,
+				}),
+			);
+
+			expect(isError(mapped)).toBe(true);
+			if (isError(mapped)) {
+				expect(mapped.error).toEqual({ code: 404, message: 'Not found' });
+			}
+		});
+
+		it('should compose with map for full pipelines', () => {
+			const okPipeline = map(
+				mapError<string, string, number>(failure('oops'), (e) => e.length),
+				(x) => x.toUpperCase(),
+			);
+			expect(isError(okPipeline)).toBe(true);
+
+			const errPipeline = mapError(
+				map<number, number, string>(success(5), (x) => x * 2),
+				() => 'unreachable',
+			);
+			expect(isSuccess(errPipeline)).toBe(true);
+		});
+	});
+
+	describe('tap', () => {
+		it('should run the callback with the full result and return it unchanged', () => {
+			const result = success('hello');
+			const seen: Result<string, unknown>[] = [];
+			const returned = tap(result, (r) => {
+				seen.push(r);
+			});
+
+			expect(returned).toBe(result);
+			expect(seen).toEqual([result]);
+		});
+
+		it('should run only the matching branch handler', () => {
+			const calls: string[] = [];
+
+			tap(success('ok'), {
+				success: (data) => {
+					calls.push(`success:${data}`);
+				},
+				failure: () => {
+					calls.push('failure:unreachable');
+				},
+			});
+
+			tap(failure(new Error('bad')), {
+				success: () => {
+					calls.push('success:unreachable');
+				},
+				failure: (err) => {
+					calls.push(`failure:${err.message}`);
+				},
+			});
+
+			expect(calls).toEqual(['success:ok', 'failure:bad']);
+		});
+
+		it('should tolerate missing handlers', () => {
+			expect(() => tap(success(1), {})).not.toThrow();
+			expect(tap(success(1), {})).toEqual(success(1));
+		});
+
+		it('should swallow errors thrown by side effects', () => {
+			const result = success('data');
+			const returned = tap(result, () => {
+				throw new Error('logger exploded');
+			});
+
+			expect(returned).toBe(result);
+
+			const errResult = failure(new Error('original'));
+			const errReturned = tap(errResult, {
+				failure: () => {
+					throw new Error('metrics exploded');
+				},
+			});
+
+			expect(errReturned).toBe(errResult);
+		});
+
+		it('should accept async callbacks without changing sync behavior', async () => {
+			const result = success('data');
+			let releaseGate!: () => void;
+			const gate = new Promise<void>((resolve) => {
+				releaseGate = resolve;
+			});
+			let finished = false;
+			const returned = tap(result, async () => {
+				await gate;
+				finished = true;
+			});
+
+			// tap stays synchronous: returns immediately, side effect finishes later.
+			expect(returned).toBe(result);
+			expect(finished).toBe(false);
+			releaseGate();
+			await gate;
+			expect(finished).toBe(true);
+		});
+
+		it('should swallow async rejections without unhandled rejections', async () => {
+			const result = success('data');
+			expect(() =>
+				tap(result, async () => {
+					throw new Error('async logger exploded');
+				}),
+			).not.toThrow();
+			expect(result.ok).toBe(true);
+		});
+	});
+
+	describe('tapAsync', () => {
+		it('should await async side effects and return the original result', async () => {
+			const result = success('hello');
+			const seen: Result<string, unknown>[] = [];
+			const order: string[] = [];
+
+			const returned = await tapAsync(result, async (r) => {
+				await Promise.resolve();
+				seen.push(r);
+				order.push('side-effect');
+			});
+			order.push('after');
+
+			expect(returned).toBe(result);
+			expect(seen).toEqual([result]);
+			expect(order).toEqual(['side-effect', 'after']);
+		});
+
+		it('should run only the matching async branch handler', async () => {
+			const calls: string[] = [];
+
+			await tapAsync(success('ok'), {
+				success: async (data) => {
+					await Promise.resolve();
+					calls.push(`success:${data}`);
+				},
+				failure: () => {
+					calls.push('failure:unreachable');
+				},
+			});
+
+			await tapAsync(failure(new Error('bad')), {
+				success: () => {
+					calls.push('success:unreachable');
+				},
+				failure: async (err) => {
+					await Promise.resolve();
+					calls.push(`failure:${err.message}`);
+				},
+			});
+
+			expect(calls).toEqual(['success:ok', 'failure:bad']);
+		});
+
+		it('should swallow sync throws and async rejections', async () => {
+			const result = success('data');
+			await expect(
+				tapAsync(result, async () => {
+					throw new Error('async exploded');
+				}),
+			).resolves.toBe(result);
+
+			const errResult = failure(new Error('original'));
+			await expect(
+				tapAsync(errResult, {
+					failure: () => {
+						throw new Error('sync exploded');
+					},
+				}),
+			).resolves.toBe(errResult);
 		});
 	});
 

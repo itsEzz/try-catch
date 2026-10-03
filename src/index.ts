@@ -78,6 +78,21 @@ export const failure = <E>(error: E): Failure<E> => {
 };
 
 /**
+ * Checks if a value is a Promise-like object (thenable).
+ * Uses duck-typing so cross-realm promises and custom thenables are detected.
+ *
+ * @param value The value to check
+ * @returns True if the value looks like a Promise
+ */
+const isPromiseLike = (value: unknown): value is PromiseLike<unknown> => {
+	return (
+		value !== null &&
+		(typeof value === 'object' || typeof value === 'function') &&
+		typeof (value as { then?: unknown }).then === 'function'
+	);
+};
+
+/**
  * Transforms the data of a successful result using the provided function
  * If the result is a failure, returns the failure unchanged
  *
@@ -106,6 +121,123 @@ export const map = <T, U, E>(result: Result<T, E>, fn: (data: T) => U): Result<U
 export const flatMap = <T, U, E>(result: Result<T, E>, fn: (data: T) => Result<U, E>): Result<U, E> => {
 	return isSuccess(result) ? fn(result.data) : result;
 };
+
+/**
+ * Transforms the error of a failed result using the provided function
+ * If the result is a success, returns the success unchanged
+ *
+ * @template T The type of the successful data
+ * @template E The type of the original error
+ * @template F The type of the transformed error
+ * @param result The result to transform
+ * @param fn The transformation function
+ * @returns A new Result with transformed error or the original success
+ */
+export const mapError = <T, E, F>(result: Result<T, E>, fn: (error: E) => F): Result<T, F> => {
+	return isError(result) ? failure(fn(result.error)) : result;
+};
+
+/**
+ * Runs a side effect without changing the result.
+ * Useful for logging, metrics, or debugging inside a pipeline.
+ * The callback's return value is ignored and thrown errors are swallowed.
+ * Async callbacks are fire-and-forget: their rejections are swallowed but not awaited.
+ * Use {@link tapAsync} to await async side effects.
+ *
+ * @template T The type of the successful data
+ * @template E The type of the error
+ * @param result The result to tap into
+ * @param fn The side-effect function receiving the full result
+ * @returns The original result unchanged
+ */
+export function tap<T, E>(result: Result<T, E>, fn: (result: Result<T, E>) => unknown): Result<T, E>;
+/**
+ * Runs a side effect for one branch without changing the result.
+ * Only the matching handler runs; its return value is ignored and thrown errors are swallowed.
+ * Async handlers are fire-and-forget: their rejections are swallowed but not awaited.
+ * Use {@link tapAsync} to await async side effects.
+ *
+ * @template T The type of the successful data
+ * @template E The type of the error
+ * @param result The result to tap into
+ * @param handlers Object containing optional success and failure handlers
+ * @returns The original result unchanged
+ */
+export function tap<T, E>(
+	result: Result<T, E>,
+	handlers: { success?: (data: T) => unknown; failure?: (error: E) => unknown },
+): Result<T, E>;
+export function tap<T, E>(
+	result: Result<T, E>,
+	fnOrHandlers:
+		| ((result: Result<T, E>) => unknown)
+		| { success?: (data: T) => unknown; failure?: (error: E) => unknown },
+): Result<T, E> {
+	try {
+		const returned =
+			typeof fnOrHandlers === 'function'
+				? fnOrHandlers(result)
+				: isSuccess(result)
+					? fnOrHandlers.success?.(result.data)
+					: fnOrHandlers.failure?.(result.error);
+		if (isPromiseLike(returned)) {
+			// Fire-and-forget: avoid unhandled rejections without changing sync behavior.
+			Promise.resolve(returned).then(undefined, () => undefined);
+		}
+	} catch {
+		// Intentionally swallow side-effect errors so tap never changes control flow.
+	}
+	return result;
+}
+
+/**
+ * Runs an async side effect and awaits it without changing the result.
+ * Useful for async logging, metrics, or debugging inside a pipeline.
+ * The callback's return value is ignored; sync throws and async rejections are swallowed.
+ *
+ * @template T The type of the successful data
+ * @template E The type of the error
+ * @param result The result to tap into
+ * @param fn The side-effect function receiving the full result
+ * @returns A promise resolving to the original result unchanged
+ */
+export function tapAsync<T, E>(
+	result: Result<T, E>,
+	fn: (result: Result<T, E>) => unknown,
+): Promise<Result<T, E>>;
+/**
+ * Runs an async side effect for one branch and awaits it without changing the result.
+ * Only the matching handler runs; its return value is ignored and errors are swallowed.
+ *
+ * @template T The type of the successful data
+ * @template E The type of the error
+ * @param result The result to tap into
+ * @param handlers Object containing optional success and failure handlers
+ * @returns A promise resolving to the original result unchanged
+ */
+export function tapAsync<T, E>(
+	result: Result<T, E>,
+	handlers: { success?: (data: T) => unknown; failure?: (error: E) => unknown },
+): Promise<Result<T, E>>;
+export async function tapAsync<T, E>(
+	result: Result<T, E>,
+	fnOrHandlers:
+		| ((result: Result<T, E>) => unknown)
+		| { success?: (data: T) => unknown; failure?: (error: E) => unknown },
+): Promise<Result<T, E>> {
+	try {
+		if (typeof fnOrHandlers === 'function') {
+			await fnOrHandlers(result);
+		} else if (isSuccess(result)) {
+			await fnOrHandlers.success?.(result.data);
+		} else {
+			await fnOrHandlers.failure?.(result.error);
+		}
+	} catch {
+		// Intentionally swallow side-effect errors so tapAsync never changes control flow.
+	}
+	return result;
+}
 
 /**
  * Combines multiple results into a single result.
@@ -170,21 +302,6 @@ export const match = <T, E, U>(
 	},
 ): U => {
 	return isSuccess(result) ? handlers.success(result.data) : handlers.failure(result.error);
-};
-
-/**
- * Checks if a value is a Promise-like object (thenable).
- * Uses duck-typing so cross-realm promises and custom thenables are detected.
- *
- * @param value The value to check
- * @returns True if the value looks like a Promise
- */
-const isPromiseLike = (value: unknown): value is PromiseLike<unknown> => {
-	return (
-		value !== null &&
-		(typeof value === 'object' || typeof value === 'function') &&
-		typeof (value as { then?: unknown }).then === 'function'
-	);
 };
 
 /**
