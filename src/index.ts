@@ -1,4 +1,4 @@
-/*!
+/**
  * Represents a successful operation result
  * @template T The type of the successful data
  */
@@ -8,7 +8,7 @@ export type Success<T> = {
 	readonly ok: true;
 };
 
-/*!
+/**
  * Represents a failed operation result
  * @template E The type of the error
  */
@@ -18,20 +18,20 @@ export type Failure<E> = {
 	readonly ok: false;
 };
 
-/*!
+/**
  * Union type representing either a successful or failed operation result
  * @template T The type of the successful data
  * @template E The type of the error, defaults to Error
  */
 export type Result<T, E = Error> = Success<T> | Failure<E>;
 
-/*!
+/**
  * Represents a value that might be a Promise or a direct value
  * @template T The type of the value
  */
 export type MaybePromise<T> = T | Promise<T>;
 
-/*!
+/**
  * Type guard to check if a result represents a successful operation
  *
  * @template T The type of the successful data
@@ -43,7 +43,7 @@ export const isSuccess = <T, E>(result: Result<T, E>): result is Success<T> => {
 	return result.ok === true;
 };
 
-/*!
+/**
  * Type guard to check if a result represents a failed operation
  *
  * @template T The type of the successful data
@@ -55,7 +55,7 @@ export const isError = <T, E>(result: Result<T, E>): result is Failure<E> => {
 	return result.ok === false;
 };
 
-/*!
+/**
  * Creates a success result with the given data
  *
  * @template T The type of the successful data
@@ -66,7 +66,7 @@ export const success = <T>(data: T): Success<T> => {
 	return { data, ok: true };
 };
 
-/*!
+/**
  * Creates a failure result with the given error
  *
  * @template E The type of the error
@@ -77,7 +77,7 @@ export const failure = <E>(error: E): Failure<E> => {
 	return { error, ok: false };
 };
 
-/*!
+/**
  * Transforms the data of a successful result using the provided function
  * If the result is a failure, returns the failure unchanged
  *
@@ -92,7 +92,7 @@ export const map = <T, U, E>(result: Result<T, E>, fn: (data: T) => U): Result<U
 	return isSuccess(result) ? success(fn(result.data)) : result;
 };
 
-/*!
+/**
  * Transforms the data of a successful result using a function that returns a Result
  * If the result is a failure, returns the failure unchanged
  *
@@ -107,7 +107,7 @@ export const flatMap = <T, U, E>(result: Result<T, E>, fn: (data: T) => Result<U
 	return isSuccess(result) ? fn(result.data) : result;
 };
 
-/*!
+/**
  * Combines multiple results into a single result.
  * If all results are successful, returns a success result containing an array of all data.
  * If any result is a failure, returns the first failure encountered.
@@ -126,7 +126,7 @@ export const all = <T, E>(results: Result<T, E>[]): Result<T[], E> => {
 	return success(data);
 };
 
-/*!
+/**
  * Extracts the data from a successful result or returns a default value
  *
  * @template T The type of the successful data
@@ -139,7 +139,7 @@ export const unwrapOr = <T, E>(result: Result<T, E>, defaultValue: T): T => {
 	return isSuccess(result) ? result.data : defaultValue;
 };
 
-/*!
+/**
  * Extracts the data from a successful result or computes a default value using the error
  *
  * @template T The type of the successful data
@@ -152,7 +152,7 @@ export const unwrapOrElse = <T, E>(result: Result<T, E>, fn: (error: E) => T): T
 	return isSuccess(result) ? result.data : fn(result.error);
 };
 
-/*!
+/**
  * Pattern matching for Result types - handles both success and failure cases
  *
  * @template T The type of the successful data
@@ -172,7 +172,22 @@ export const match = <T, E, U>(
 	return isSuccess(result) ? handlers.success(result.data) : handlers.failure(result.error);
 };
 
-/*!
+/**
+ * Checks if a value is a Promise-like object (thenable).
+ * Uses duck-typing so cross-realm promises and custom thenables are detected.
+ *
+ * @param value The value to check
+ * @returns True if the value looks like a Promise
+ */
+const isPromiseLike = (value: unknown): value is PromiseLike<unknown> => {
+	return (
+		value !== null &&
+		(typeof value === 'object' || typeof value === 'function') &&
+		typeof (value as { then?: unknown }).then === 'function'
+	);
+};
+
+/**
  * Safely executes a function or awaits a promise, capturing any errors
  *
  * This utility provides a consistent way to handle both synchronous and asynchronous
@@ -194,20 +209,26 @@ export function tryCatch<T, E = unknown>(
 		try {
 			const result = fnOrPromise();
 
-			if (result instanceof Promise) {
-				return result.then((data) => success(data)).catch((error) => failure(error as E));
+			if (isPromiseLike(result)) {
+				return Promise.resolve(result).then(
+					(data) => success(data as T),
+					(error) => failure(error as E),
+				);
 			}
 
-			return success(result);
+			return success(result as T);
 		} catch (error) {
 			return failure(error as E);
 		}
 	}
 
-	return fnOrPromise.then((data) => success(data)).catch((error) => failure(error as E));
+	return Promise.resolve(fnOrPromise).then(
+		(data) => success(data),
+		(error) => failure(error as E),
+	);
 }
 
-/*!
+/**
  * Safely executes a synchronous function, capturing any errors
  *
  * This utility is specifically for synchronous operations that might throw errors.
@@ -218,16 +239,25 @@ export function tryCatch<T, E = unknown>(
  * @param fn The synchronous function to execute
  * @returns A Result object containing either data or error
  */
-export function tryCatchSync<T, E = unknown>(fn: () => T): Result<T, E> {
+export function tryCatchSync<T, E = unknown>(
+	fn: () => Exclude<T, PromiseLike<unknown>>,
+): Result<Exclude<T, PromiseLike<unknown>>, E> {
 	try {
 		const result = fn();
+		if (isPromiseLike(result)) {
+			return failure(
+				new TypeError(
+					'tryCatchSync received a Promise. Use tryCatch or tryCatchAsync for async functions.',
+				) as E,
+			);
+		}
 		return success(result);
 	} catch (error) {
 		return failure(error as E);
 	}
 }
 
-/*!
+/**
  * Safely executes an asynchronous function or awaits a promise, capturing any errors
  *
  * This utility is specifically for asynchronous operations that might throw errors.
@@ -251,7 +281,7 @@ export async function tryCatchAsync<T, E = unknown>(
 	}
 }
 
-/*!
+/**
  * Short alias for tryCatch - safely executes a function or awaits a promise
  *
  * @template T The type of the successful result
@@ -261,7 +291,7 @@ export async function tryCatchAsync<T, E = unknown>(
  */
 export const t = tryCatch;
 
-/*!
+/**
  * Short alias for tryCatchSync - safely executes a synchronous function
  *
  * @template T The type of the successful result
@@ -271,7 +301,7 @@ export const t = tryCatch;
  */
 export const tc = tryCatchSync;
 
-/*!
+/**
  * Short alias for tryCatchAsync - safely executes an async function or awaits a promise
  *
  * @template T The type of the successful result
