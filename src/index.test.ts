@@ -1,5 +1,6 @@
 import {
 	all,
+	chain,
 	failure,
 	flatMap,
 	isError,
@@ -770,6 +771,134 @@ describe('Result Utility Methods', () => {
 					},
 				}),
 			).resolves.toBe(errResult);
+		});
+	});
+
+	describe('chain', () => {
+		it('should map and match through a success pipeline', () => {
+			const message = chain(success(5))
+				.map((x) => x * 2)
+				.map((x) => `n=${x}`)
+				.match({
+					success: (s) => `ok:${s}`,
+					failure: () => 'unreachable',
+				});
+
+			expect(message).toBe('ok:n=10');
+		});
+
+		it('should short-circuit map/flatMap on failure and run the failure branch', () => {
+			const calls: string[] = [];
+			const message = chain<number, string>(failure('boom'))
+				.map((x) => {
+					calls.push('map:unreachable');
+					return x * 2;
+				})
+				.flatMap((x) => {
+					calls.push('flatMap:unreachable');
+					return success(x);
+				})
+				.mapError((e) => `wrapped:${e}`)
+				.match({
+					success: () => 'unreachable',
+					failure: (e) => `caught:${e}`,
+				});
+
+			expect(calls).toEqual([]);
+			expect(message).toBe('caught:wrapped:boom');
+		});
+
+		it('should chain flatMap operations that can fail', () => {
+			const parseNumber = (str: string): Result<number, string> => {
+				const num = parseInt(str, 10);
+				return isNaN(num) ? failure('Not a number') : success(num);
+			};
+
+			const ok = chain<string, string>(success('5'))
+				.flatMap(parseNumber)
+				.flatMap((x): Result<number, string> => success(x * 2))
+				.unwrapOr(0);
+			expect(ok).toBe(10);
+
+			const err = chain<string, string>(success('nope'))
+				.flatMap(parseNumber)
+				.flatMap((x): Result<number, string> => success(x * 2))
+				.match({
+					success: (x) => `value:${x}`,
+					failure: (e) => `fallback:${e}`,
+				});
+			expect(err).toBe('fallback:Not a number');
+		});
+
+		it('should support tap without breaking the chain and preserve identity', () => {
+			const seen: string[] = [];
+			const chained = chain(success('hi'));
+			const afterTap = chained.tap({
+				success: (d) => {
+					seen.push(d);
+				},
+			});
+
+			expect(afterTap).toBe(chained);
+			expect(seen).toEqual(['hi']);
+			expect(afterTap.unwrapOr('?')).toBe('hi');
+		});
+
+		it('should support tapAsync and preserve the chain instance', async () => {
+			const order: string[] = [];
+			const chained = chain(success('hi'));
+			const afterTap = await chained.tapAsync(async (r) => {
+				await Promise.resolve();
+				order.push(r.ok ? 'side-effect' : 'unreachable');
+			});
+			order.push('after');
+
+			expect(afterTap).toBe(chained);
+			expect(order).toEqual(['side-effect', 'after']);
+		});
+
+		it('should expose ok and raw/toResult interop', () => {
+			const okChained = chain(success(1));
+			expect(okChained.ok).toBe(true);
+			expect(okChained.toResult()).toBe(okChained.raw);
+			expect(okChained.toResult()).toEqual(success(1));
+
+			const errChained = chain<number, string>(failure('bad'));
+			expect(errChained.ok).toBe(false);
+		});
+
+		it('should transform errors with mapError and keep error type through the chain', () => {
+			const message = chain<string, Error>(failure(new Error('missing')))
+				.map((s) => s.toUpperCase())
+				.mapError((e) => ({ code: 404, message: e.message }))
+				.match({
+					success: () => 'unreachable',
+					failure: (e) => `${e.code}:${e.message}`,
+				});
+
+			expect(message).toBe('404:missing');
+		});
+
+		it('should be idempotent and accept chained values in flatMap', () => {
+			const chained = chain(success(2));
+			expect(chain(chained)).toBe(chained);
+
+			const message = chain(success(2))
+				.flatMap((x) => chain(success(x * 3)))
+				.match({
+					success: (n) => `n=${n}`,
+					failure: () => 'unreachable',
+				});
+			expect(message).toBe('n=6');
+		});
+
+		it('should be frozen and mix with standalone functions', () => {
+			const chained = chain(success(2)).map((x) => x + 1);
+			expect(Object.isFrozen(chained)).toBe(true);
+
+			// Chained raw output works with standalone functions and vice versa.
+			expect(unwrapOr(chained.toResult(), 0)).toBe(3);
+			expect(chain(map(success(2), (x) => x + 1)).unwrapOr(0)).toBe(3);
 		});
 	});
 

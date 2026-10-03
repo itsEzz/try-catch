@@ -201,10 +201,7 @@ export function tap<T, E>(
  * @param fn The side-effect function receiving the full result
  * @returns A promise resolving to the original result unchanged
  */
-export function tapAsync<T, E>(
-	result: Result<T, E>,
-	fn: (result: Result<T, E>) => unknown,
-): Promise<Result<T, E>>;
+export function tapAsync<T, E>(result: Result<T, E>, fn: (result: Result<T, E>) => unknown): Promise<Result<T, E>>;
 /**
  * Runs an async side effect for one branch and awaits it without changing the result.
  * Only the matching handler runs; its return value is ignored and errors are swallowed.
@@ -303,6 +300,129 @@ export const match = <T, E, U>(
 ): U => {
 	return isSuccess(result) ? handlers.success(result.data) : handlers.failure(result.error);
 };
+
+/**
+ * A fluent, opt-in wrapper around a plain {@link Result}.
+ * Created via {@link chain}. All transform methods delegate to the
+ * standalone functions, so behavior stays identical — only the style changes.
+ *
+ * Each transform returns a new `ChainedResult` (except `tap`, which returns
+ * the same instance since the underlying result is unchanged).
+ *
+ * @template T The type of the successful data
+ * @template E The type of the error
+ */
+export type ChainedResult<T, E> = {
+	/** The underlying plain result. */
+	readonly raw: Result<T, E>;
+	/** Mirrors `raw.ok` for convenient branching. */
+	readonly ok: boolean;
+	/** Transforms success data, passes failures through. See {@link map}. */
+	map<U>(fn: (data: T) => U): ChainedResult<U, E>;
+	/** Chains a fallible operation, passes failures through. See {@link flatMap}. */
+	flatMap<U>(fn: (data: T) => Result<U, E> | ChainedResult<U, E>): ChainedResult<U, E>;
+	/** Transforms the error, passes successes through. See {@link mapError}. */
+	mapError<F>(fn: (error: E) => F): ChainedResult<T, F>;
+	/** Runs a sync side effect without changing the result. See {@link tap}. */
+	tap(fn: (result: Result<T, E>) => unknown): ChainedResult<T, E>;
+	/** Runs a sync side effect for one branch without changing the result. See {@link tap}. */
+	tap(handlers: { success?: (data: T) => unknown; failure?: (error: E) => unknown }): ChainedResult<T, E>;
+	/** Runs an async side effect and awaits it without changing the result. See {@link tapAsync}. */
+	tapAsync(fn: (result: Result<T, E>) => unknown): Promise<ChainedResult<T, E>>;
+	/** Runs an async side effect for one branch and awaits it. See {@link tapAsync}. */
+	tapAsync(handlers: {
+		success?: (data: T) => unknown;
+		failure?: (error: E) => unknown;
+	}): Promise<ChainedResult<T, E>>;
+	/** Pattern matching terminal. See {@link match}. */
+	match<U>(handlers: { success: (data: T) => U; failure: (error: E) => U }): U;
+	/** Terminal returning data or a default. See {@link unwrapOr}. */
+	unwrapOr(defaultValue: T): T;
+	/** Terminal computing a fallback from the error. See {@link unwrapOrElse}. */
+	unwrapOrElse(fn: (error: E) => T): T;
+	/** Escape hatch back to the plain `Result` for interop. Returns the same reference held in `raw`. */
+	toResult(): Result<T, E>;
+};
+
+/**
+ * Runtime check for a {@link ChainedResult} wrapper.
+ * Used to make `chain()` idempotent and to unwrap chained values in `flatMap`.
+ *
+ * @param value The value to check
+ * @returns True if the value looks like a ChainedResult
+ */
+const isChainedResult = (value: unknown): value is ChainedResult<unknown, unknown> => {
+	return (
+		value !== null &&
+		typeof value === 'object' &&
+		typeof (value as { toResult?: unknown }).toResult === 'function' &&
+		'raw' in value &&
+		typeof (value as { map?: unknown }).map === 'function'
+	);
+};
+
+/**
+ * Wraps a plain {@link Result} in a fluent chainable interface.
+ * Fully opt-in and backwards compatible: existing plain results keep working
+ * with the standalone functions, and `toResult()` returns the plain shape.
+ * Passing an already-chained value returns it unchanged.
+ *
+ * @template T The type of the successful data
+ * @template E The type of the error
+ * @param result The plain result (or already-chained result) to wrap
+ * @returns A frozen fluent wrapper around the result
+ *
+ * @example
+ * ```ts
+ * const message = chain(tryCatchSync(() => JSON.parse(input)))
+ *   .map((data) => data.name)
+ *   .mapError((err) => `parse failed: ${String(err)}`)
+ *   .tap({ failure: (e) => console.error(e) })
+ *   .match({ success: (name) => `hi ${name}`, failure: (e) => e });
+ * ```
+ */
+export function chain<T, E>(result: Result<T, E> | ChainedResult<T, E>): ChainedResult<T, E> {
+	if (isChainedResult(result)) {
+		return result as ChainedResult<T, E>;
+	}
+	const raw = result as Result<T, E>;
+
+	const self: ChainedResult<T, E> = {
+		raw,
+		ok: raw.ok,
+		map: <U>(fn: (data: T) => U): ChainedResult<U, E> => chain(map(raw, fn)),
+		mapError: <F>(fn: (error: E) => F): ChainedResult<T, F> => chain(mapError(raw, fn)),
+		flatMap: <U>(fn: (data: T) => Result<U, E> | ChainedResult<U, E>): ChainedResult<U, E> => {
+			if (isError(raw)) {
+				return chain(raw as unknown as Result<U, E>);
+			}
+			const next = fn(raw.data);
+			return chain(isChainedResult(next) ? next.toResult() : next);
+		},
+		tap: (
+			fnOrHandlers:
+				| ((result: Result<T, E>) => unknown)
+				| { success?: (data: T) => unknown; failure?: (error: E) => unknown },
+		): ChainedResult<T, E> => {
+			tap(raw, fnOrHandlers as { success?: (data: T) => unknown; failure?: (error: E) => unknown });
+			return self;
+		},
+		tapAsync: async (
+			fnOrHandlers:
+				| ((result: Result<T, E>) => unknown)
+				| { success?: (data: T) => unknown; failure?: (error: E) => unknown },
+		): Promise<ChainedResult<T, E>> => {
+			await tapAsync(raw, fnOrHandlers as { success?: (data: T) => unknown; failure?: (error: E) => unknown });
+			return self;
+		},
+		match: <U>(handlers: { success: (data: T) => U; failure: (error: E) => U }): U => match(raw, handlers),
+		unwrapOr: (defaultValue: T): T => unwrapOr(raw, defaultValue),
+		unwrapOrElse: (fn: (error: E) => T): T => unwrapOrElse(raw, fn),
+		toResult: (): Result<T, E> => raw,
+	};
+
+	return Object.freeze(self);
+}
 
 /**
  * Safely executes a function or awaits a promise, capturing any errors
