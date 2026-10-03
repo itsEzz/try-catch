@@ -5,9 +5,7 @@ export default defineConfig({
 	format: ['cjs', 'esm'],
 	sourcemap: true,
 	outputOptions: {
-		comments: {
-			legal: true,
-		},
+		comments: true,
 	},
 	target: false,
 });
