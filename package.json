@@ -1,68 +1,66 @@
 {
-	"name": "@itsezz/try-catch",
-	"version": "1.5.0",
-	"description": "A TypeScript utility for elegant error handling with Result types",
-	"keywords": [
-		"error-handling",
-		"result",
-		"try-catch",
-		"typescript",
-		"utility"
-	],
-	"homepage": "https://github.com/itsezz/try-catch#readme",
-	"bugs": {
-		"url": "https://github.com/itsezz/try-catch/issues"
-	},
-	"license": "MIT",
-	"author": "@itsEzz",
-	"repository": {
-		"type": "git",
-		"url": "git+https://github.com/itsezz/try-catch.git"
-	},
-	"files": [
-		"dist",
-		"LICENSE",
-		"README.md"
-	],
-	"type": "module",
-	"sideEffects": false,
-	"main": "dist/index.cjs",
-	"module": "dist/index.mjs",
-	"types": "dist/index.d.mts",
-	"exports": {
-		".": {
-			"import": {
-				"types": "./dist/index.d.mts",
-				"default": "./dist/index.mjs"
-			},
-			"require": {
-				"types": "./dist/index.d.cts",
-				"default": "./dist/index.cjs"
-			}
-		}
-	},
-	"publishConfig": {
-		"access": "public"
-	},
-	"scripts": {
-		"build": "vp pack",
-		"test": "node --experimental-vm-modules node_modules/jest/bin/jest.js",
-		"test:watch": "node --experimental-vm-modules node_modules/jest/bin/jest.js --watch",
-		"test:coverage": "node --experimental-vm-modules node_modules/jest/bin/jest.js --coverage",
-		"lint": "vp lint src",
-		"lint:fix": "vp lint src --fix",
-		"prepublishOnly": "pnpm run lint && pnpm run test && pnpm run build",
-		"prepare": "vp config && pnpm run build"
-	},
-	"devDependencies": {
-		"@types/jest": "^30.0.0",
-		"jest": "^30.4.2",
-		"ts-jest": "^29.4.12",
-		"typescript": "^6.0.3",
-		"vite-plus": "catalog:"
-	},
-	"engines": {
-		"node": ">=22.0.0"
-	},
-	"packageManager": "pnpm@12.15.0"
+  "name": "@itsezz/try-catch",
+  "version": "1.5.0",
+  "description": "A TypeScript utility for elegant error handling with Result types",
+  "keywords": [
+    "error-handling",
+    "result",
+    "try-catch",
+    "typescript",
+    "utility"
+  ],
+  "homepage": "https://github.com/itsezz/try-catch#readme",
+  "bugs": {
+    "url": "https://github.com/itsezz/try-catch/issues"
+  },
+  "license": "MIT",
+  "author": "@itsEzz",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/itsezz/try-catch.git"
+  },
+  "files": [
+    "dist",
+    "LICENSE",
+    "README.md"
+  ],
+  "type": "module",
+  "sideEffects": false,
+  "main": "dist/index.cjs",
+  "module": "dist/index.mjs",
+  "types": "dist/index.d.mts",
+  "exports": {
+    ".": {
+      "import": {
+        "types": "./dist/index.d.mts",
+        "default": "./dist/index.mjs"
+      },
+      "require": {
+        "types": "./dist/index.d.cts",
+        "default": "./dist/index.cjs"
+      }
+    }
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "build": "vp pack",
+    "test": "vp test run",
+    "test:watch": "vp test watch",
+    "test:coverage": "vp test run --coverage",
+    "lint": "vp lint src",
+    "lint:fix": "vp lint src --fix",
+    "prepublishOnly": "pnpm run lint && pnpm run test && pnpm run build",
+    "prepare": "vp config && pnpm run build"
+  },
+  "devDependencies": {
+    "@vitest/coverage-v8": "5.0.5",
+    "typescript": "^6.0.3",
+    "vite-plus": "catalog:"
+  },
+  "engines": {
+    "node": ">=22.0.0"
+  },
+  "packageManager": "pnpm@12.15.0"
 }
